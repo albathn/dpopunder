@@ -1,2 +1,135 @@
-function jsPopunder(e,t){function d(){try{c=Math.floor(document.cookie.split(h+"Cap=")[1].split(";")[0])}catch(e){}return l<=c||document.cookie.indexOf(h+"=")!==-1}function v(e,t,i,s,o,u){if(d())return;var a="toolbar=no,scrollbars=yes,location=yes,statusbar=yes,menubar=no,resizable=1,width="+i.toString()+",height="+s.toString()+",screenX="+o+",screenY="+u,l=function(){if(d())return;r=n.window.open(e,t,a);if(r){var i=new Date,s=new Date(i.setTime(i.getTime()+f));document.cookie=h+"=1;expires="+s.toGMTString()+";path=/";var o=new Date;o.setHours(24,0,0,0),document.cookie=h+"Cap="+(c+1)+";expires="+o.toGMTString()+";path=/",m()}};document.addEventListener?document.addEventListener("click",l,!1):document.attachEvent("onclick",l)}function m(){try{r.blur(),r.opener.window.focus(),window.self.window.focus(),window.focus(),p.firefox&&g(),p.webkit&&y(),p.msie&&setTimeout(function(){r.blur(),r.opener.window.focus(),window.self.window.focus(),window.focus()},1e3)}catch(e){}}function g(){var e=window.open("about:blank");e.focus(),e.close()}function y(){var e="",t=document.createElement("a");t.href="data:text/html,window.close();",document.getElementsByTagName("body")[0].appendChild(t);var n=document.createEvent("MouseEvents");n.initMouseEvent("click",!1,!0,window,0,0,0,0,0,!0,!1,!1,!0,0,null),t.dispatchEvent(n),t.parentNode.removeChild(t)}var n=top!=self&&typeof top.document.location.toString()=="string"?top:self,r=null;t=t||{};var i=t.name||Math.floor(Math.random()*1e3+1),s=t.width||window.outerWidth||window.innerWidth,o=t.height||window.outerHeight-100||window.innerHeight,u=typeof t.left!="undefined"?t.left.toString():window.screenX,a=typeof t.top!="undefined"?t.top.toString():window.screenY,f=t.wait||3600;f*=1e3;var l=t.cap||2,c=0,h=t.cookie||"__.popunder",p=function(){var e=navigator.userAgent.toLowerCase(),t={webkit:/webkit/.test(e),mozilla:/mozilla/.test(e)&&!/(compatible|webkit)/.test(e),chrome:/chrome/.test(e),msie:/msie/.test(e)&&!/opera/.test(e),firefox:/firefox/.test(e),safari:/safari/.test(e)&&!/chrome/.test(e),opera:/opera/.test(e)};return t.version=t.safari?(e.match(/.+(?:ri)[\/: ]([\d.]+)/)||[])[1]:(e.match(/.+(?:ox|me|ra|ie)[\/: ]([\d.]+)/)||[])[1],t}();if(d())return;v(e,i,s,o,u,a)}; jsPopunder('http://adf.ly/wC0Ms',{cap:1});
-
+ /* use jQuery as container for more convenience */
+    (function($) {
+        /**
+         * Create a popunder
+         *
+         * @param  sUrl Url to open as popunder
+         * @param  int block time in hours
+         *
+         * @return jQuery
+         */
+        $.popunder = function(sUrl, blockTime) {
+            var bSimple = $.browser.msie,
+                run = function() {
+                    $.popunderHelper.open(sUrl, blockTime, bSimple);
+                };
+            (bSimple) ? run() : window.setTimeout(run, 1);
+            return $;
+        };
+        
+        /* several helper functions */
+        $.popunderHelper = {
+            /**
+             * Helper to create a (optionally) random value with prefix
+             *
+             * @param  int blockTime block time in hours
+             *
+             * @return boolean
+             */
+            cookieCheck: function(sUrl, blockTime) {
+                var name = this.rand('puCookie', false); 
+                    cookie = $.cookies.get(name),
+                    ret = false;
+                
+                if (!cookie) {
+                    cookie = sUrl;
+                }
+                else if (cookie.indexOf(sUrl) === -1) {
+                    cookie += sUrl;
+                }
+                else {
+                    ret = true;
+                }
+                
+                $.cookies.set(name, cookie, {
+                    expiresAt: new Date((new Date()).getTime() + blockTime * 3600000)
+                });
+                
+                return ret;
+            },
+            
+            /**
+             * Helper to create a (optionally) random value with prefix
+             *
+             * @param  string name
+             * @param  boolean rand
+             *
+             * @return string
+             */
+            rand: function(name, rand) {
+                var p = (name) ? name : 'pu_';
+                return p + (rand === false ? '' : Math.floor(89999999*Math.random()+10000000));
+            },
+            
+            /**
+             * Open the popunder
+             *
+             * @param  string sUrl The URL to open
+             * @param  int blockTime block time in hours
+             * @param  boolean bSimple Use the simple popunder
+             *
+             * @return boolean
+             */
+            open: function(sUrl, blockTime, bSimple) {
+                var _parent = self,
+                    sToolbar = (!$.browser.webkit && (!$.browser.mozilla || parseInt($.browser.version, 10) < 12)) ? 'yes' : 'no',
+                    sOptions,
+                    popunder;
+                
+                if (blockTime && $.popunderHelper.cookieCheck(sUrl, blockTime)) {
+                    return false;
+                }
+                
+                if (top != self) {
+                    try {
+                        if (top.document.location.toString()) {
+                            _parent = top;
+                        }
+                    }
+                    catch(err) { }
+                }
+        
+                /* popunder options */
+                sOptions = 'toolbar=' + sToolbar + ',scrollbars=yes,location=yes,statusbar=yes,menubar=no,resizable=1,width=' + (screen.availWidth - 10).toString();
+                sOptions += ',height=' + (screen.availHeight - 122).toString() + ',screenX=0,screenY=0,left=0,top=0';
+        
+                /* create pop-up from parent context */
+                popunder = _parent.window.open(sUrl, $.popunderHelper.rand(), sOptions);
+                if (popunder) {
+                    popunder.blur();
+                    if (bSimple) {
+                        /* classic popunder, used for ie*/
+                        window.focus();
+                        try { opener.window.focus(); }
+                        catch (err) { }
+                    }
+                    else {
+                        /* popunder for e.g. ff4+, chrome */
+                        popunder.init = function(e) {
+                            with (e) {
+                                (function() {
+                                    if (typeof window.mozPaintCount != 'undefined') {
+                                        var x = window.open('about:blank');
+                                        x.close();
+                                    }
+        
+                                    try { opener.window.focus(); }
+                                    catch (err) { }
+                                })();
+                            }
+                        };
+                        popunder.params = {
+                            url: sUrl
+                        };
+                        popunder.init(popunder);
+                    }
+                }
+                
+                return true;
+            }
+        };
+    })(jQuery);
+    
+    $('#testSubmit').submit(function() {
+        jQuery.popunder('https://downloadmakalahdanskripsi.blogspot.com', 1).popunder('http://www.flug24.de');
+    });
